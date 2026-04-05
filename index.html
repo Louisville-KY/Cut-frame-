@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cut Frame — Edit Everything</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --black: #080808;
+      --white: #f5f0e8;
+      --red: #e63022;
+      --dim: #1a1a1a;
+      --muted: #3a3a3a;
+      --text-muted: #888;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--black);
+      color: var(--white);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 300;
+      overflow-x: hidden;
+      cursor: none;
+    }
+
+    /* Custom cursor */
+    .cursor {
+      position: fixed;
+      width: 12px;
+      height: 12px;
+      background: var(--red);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(-50%, -50%);
+      transition: transform 0.1s ease, width 0.2s ease, height 0.2s ease;
+      mix-blend-mode: normal;
+    }
+    .cursor.grow {
+      width: 40px;
+      height: 40px;
+      background: rgba(230,48,34,0.3);
+      border: 1px solid var(--red);
+    }
+
+    /* Nav */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px 40px;
+      background: linear-gradient(to bottom, rgba(8,8,8,0.95), transparent);
+    }
+
+    .logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 28px;
+      letter-spacing: 4px;
+      color: var(--white);
+      text-decoration: none;
+    }
+
+    .logo span { color: var(--red); }
+
+    nav ul {
+      list-style: none;
+      display: flex;
+      gap: 36px;
+    }
+
+    nav ul a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      transition: color 0.2s;
+    }
+
+    nav ul a:hover { color: var(--white); }
+
+    /* Hero */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 0 40px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 70% 50%, rgba(230,48,34,0.07) 0%, transparent 70%),
+        repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 2px,
+          rgba(255,255,255,0.012) 2px,
+          rgba(255,255,255,0.012) 4px
+        );
+      pointer-events: none;
+    }
+
+    /* Film grain */
+    .hero::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    .hero-label {
+      font-size: 11px;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 28px;
+      opacity: 0;
+      animation: fadeUp 0.8s 0.2s forwards;
+    }
+
+    .hero-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(80px, 14vw, 200px);
+      line-height: 0.9;
+      letter-spacing: -2px;
+      color: var(--white);
+      opacity: 0;
+      animation: fadeUp 0.9s 0.4s forwards;
+    }
+
+    .hero-title .cut { display: block; }
+    .hero-title .frame {
+      display: block;
+      color: transparent;
+      -webkit-text-stroke: 1px rgba(245,240,232,0.3);
+    }
+
+    .hero-sub {
+      margin-top: 32px;
+      font-size: 16px;
+      color: var(--text-muted);
+      max-width: 400px;
+      line-height: 1.7;
+      opacity: 0;
+      animation: fadeUp 0.9s 0.6s forwards;
+    }
+
+    .hero-cta {
+      margin-top: 48px;
+      display: flex;
+      gap: 16px;
+      opacity: 0;
+      animation: fadeUp 0.9s 0.8s forwards;
+    }
+
+    .btn-primary {
+      background: var(--red);
+      color: var(--white);
+      border: none;
+      padding: 16px 36px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      cursor: none;
+      text-decoration: none;
+      display: inline-block;
+      transition: background 0.2s, transform 0.2s;
+    }
+
+    .btn-primary:hover {
+      background: #c42518;
+      transform: translateY(-2px);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--white);
+      border: 1px solid var(--muted);
+      padding: 16px 36px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      cursor: none;
+      text-decoration: none;
+      display: inline-block;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--white);
+      transform: translateY(-2px);
+    }
+
+    /* Scrolling ticker */
+    .ticker-wrap {
+      overflow: hidden;
+      border-top: 1px solid var(--muted);
+      border-bottom: 1px solid var(--muted);
+      padding: 14px 0;
+      background: var(--dim);
+    }
+
+    .ticker {
+      display: flex;
+      gap: 60px;
+      white-space: nowrap;
+      animation: ticker 20s linear infinite;
+    }
+
+    .ticker span {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 13px;
+      letter-spacing: 4px;
+      color: var(--text-muted);
+    }
+
+    .ticker span b { color: var(--red); font-weight: 400; }
+
+    @keyframes ticker {
+      from { transform: translateX(0); }
+      to { transform: translateX(-50%); }
+    }
+
+    /* Tools Section */
+    .tools {
+      padding: 120px 40px;
+    }
+
+    .section-label {
+      font-size: 11px;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(40px, 6vw, 80px);
+      letter-spacing: 1px;
+      margin-bottom: 64px;
+      color: var(--white);
+    }
+
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1px;
+      background: var(--muted);
+      border: 1px solid var(--muted);
+    }
+
+    .tool-card {
+      background: var(--black);
+      padding: 48px 36px;
+      position: relative;
+      overflow: hidden;
+      transition: background 0.3s;
+      text-decoration: none;
+      color: var(--white);
+      display: block;
+    }
+
+    .tool-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--red);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.4s ease;
+    }
+
+    .tool-card:hover { background: var(--dim); }
+    .tool-card:hover::before { transform: scaleX(1); }
+
+    .tool-number {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 13px;
+      letter-spacing: 3px;
+      color: var(--text-muted);
+      margin-bottom: 32px;
+    }
+
+    .tool-icon {
+      font-size: 36px;
+      margin-bottom: 20px;
+      display: block;
+      filter: grayscale(1);
+      transition: filter 0.3s;
+    }
+
+    .tool-card:hover .tool-icon { filter: grayscale(0); }
+
+    .tool-name {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 32px;
+      letter-spacing: 2px;
+      margin-bottom: 12px;
+    }
+
+    .tool-desc {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .tool-arrow {
+      position: absolute;
+      bottom: 36px;
+      right: 36px;
+      font-size: 20px;
+      color: var(--red);
+      opacity: 0;
+      transition: opacity 0.3s, transform 0.3s;
+    }
+
+    .tool-card:hover .tool-arrow {
+      opacity: 1;
+      transform: translate(4px, -4px);
+    }
+
+    /* Stats */
+    .stats {
+      padding: 80px 40px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1px;
+      background: var(--muted);
+      border-top: 1px solid var(--muted);
+      border-bottom: 1px solid var(--muted);
+    }
+
+    .stat {
+      background: var(--black);
+      padding: 48px 36px;
+      text-align: center;
+    }
+
+    .stat-num {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 64px;
+      color: var(--white);
+      letter-spacing: 2px;
+      line-height: 1;
+    }
+
+    .stat-num span { color: var(--red); }
+
+    .stat-label {
+      font-size: 12px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    /* Why section */
+    .why {
+      padding: 120px 40px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 80px;
+      align-items: center;
+    }
+
+    .why-text h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(40px, 5vw, 70px);
+      letter-spacing: 1px;
+      line-height: 1;
+      margin-bottom: 32px;
+    }
+
+    .why-text p {
+      font-size: 16px;
+      color: var(--text-muted);
+      line-height: 1.8;
+      margin-bottom: 20px;
+    }
+
+    .why-list {
+      list-style: none;
+      margin-top: 36px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .why-list li {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .why-list li::before {
+      content: '—';
+      color: var(--red);
+      flex-shrink: 0;
+    }
+
+    .why-visual {
+      position: relative;
+      aspect-ratio: 4/3;
+      background: var(--dim);
+      border: 1px solid var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .why-visual::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 40px,
+        rgba(255,255,255,0.02) 40px,
+        rgba(255,255,255,0.02) 41px
+      ),
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 40px,
+        rgba(255,255,255,0.02) 40px,
+        rgba(255,255,255,0.02) 41px
+      );
+    }
+
+    .why-visual-inner {
+      text-align: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .why-visual-inner .big-icon {
+      font-size: 80px;
+      display: block;
+      margin-bottom: 16px;
+    }
+
+    .why-visual-inner p {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 18px;
+      letter-spacing: 4px;
+      color: var(--text-muted);
+    }
+
+    /* CTA Banner */
+    .cta-banner {
+      margin: 0 40px 120px;
+      background: var(--red);
+      padding: 80px 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 40px;
+      flex-wrap: wrap;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta-banner::before {
+      content: 'CUT FRAME';
+      position: absolute;
+      right: -20px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 160px;
+      color: rgba(0,0,0,0.1);
+      letter-spacing: -4px;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .cta-banner h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(36px, 5vw, 60px);
+      letter-spacing: 2px;
+      color: var(--white);
+      position: relative;
+      z-index: 1;
+    }
+
+    .btn-white {
+      background: var(--white);
+      color: var(--black);
+      border: none;
+      padding: 18px 40px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      cursor: none;
+      text-decoration: none;
+      display: inline-block;
+      font-weight: 500;
+      transition: transform 0.2s;
+      position: relative;
+      z-index: 1;
+      flex-shrink: 0;
+    }
+
+    .btn-white:hover { transform: translateY(-2px); }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--muted);
+      padding: 40px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    footer .logo { font-size: 20px; }
+
+    footer p {
+      font-size: 12px;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+    }
+
+    /* Animations */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Scroll reveal */
+    .reveal {
+      opacity: 0;
+      transform: translateY(40px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Mobile */
+    @media (max-width: 768px) {
+      nav { padding: 20px 24px; }
+      nav ul { display: none; }
+      .hero { padding: 0 24px; }
+      .hero-title { font-size: clamp(70px, 20vw, 120px); }
+      .tools { padding: 80px 24px; }
+      .why { grid-template-columns: 1fr; padding: 80px 24px; gap: 40px; }
+      .why-visual { display: none; }
+      .stats { padding: 0; }
+      .cta-banner { margin: 0 24px 80px; padding: 48px 32px; }
+      footer { padding: 32px 24px; flex-direction: column; text-align: center; }
+      body { cursor: auto; }
+      .cursor { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="cursor" id="cursor"></div>
+
+  <!-- Nav -->
+  <nav>
+    <a href="#" class="logo">CUT<span>.</span>FRAME</a>
+    <ul>
+      <li><a href="#tools">Tools</a></li>
+      <li><a href="#why">About</a></li>
+      <li><a href="#start">Start</a></li>
+    </ul>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-bg"></div>
+    <p class="hero-label">✦ All-in-one editing platform</p>
+    <h1 class="hero-title">
+      <span class="cut">CUT</span>
+      <span class="frame">FRAME</span>
+    </h1>
+    <p class="hero-sub">Edit photos, videos, text, and documents — all in one place. No installs. No sign-up. Just create.</p>
+    <div class="hero-cta">
+      <a href="#tools" class="btn-primary">Start Editing</a>
+      <a href="#why" class="btn-ghost">Learn More</a>
+    </div>
+  </section>
+
+  <!-- Ticker -->
+  <div class="ticker-wrap">
+    <div class="ticker">
+      <span>Photo Editing <b>✦</b></span>
+      <span>Video Trimming <b>✦</b></span>
+      <span>Text Editing <b>✦</b></span>
+      <span>PDF Tools <b>✦</b></span>
+      <span>No Sign-Up <b>✦</b></span>
+      <span>Free to Use <b>✦</b></span>
+      <span>Browser Based <b>✦</b></span>
+      <span>Photo Editing <b>✦</b></span>
+      <span>Video Trimming <b>✦</b></span>
+      <span>Text Editing <b>✦</b></span>
+      <span>PDF Tools <b>✦</b></span>
+      <span>No Sign-Up <b>✦</b></span>
+      <span>Free to Use <b>✦</b></span>
+      <span>Browser Based <b>✦</b></span>
+    </div>
+  </div>
+
+  <!-- Tools -->
+  <section class="tools" id="tools">
+    <p class="section-label reveal">✦ What we offer</p>
+    <h2 class="section-title reveal">Every Edit.<br>One Place.</h2>
+    <div class="tools-grid">
+
+      <a href="#" class="tool-card reveal">
+        <p class="tool-number">01</p>
+        <span class="tool-icon">🖼️</span>
+        <h3 class="tool-name">Photo Editor</h3>
+        <p class="tool-desc">Crop, resize, apply filters, adjust brightness and contrast. Professional results in seconds.</p>
+        <span class="tool-arrow">↗</span>
+      </a>
+
+      <a href="#" class="tool-card reveal">
+        <p class="tool-number">02</p>
+        <span class="tool-icon">🎬</span>
+        <h3 class="tool-name">Video Editor</h3>
+        <p class="tool-desc">Trim clips, add text overlays, merge footage, and export — right in your browser.</p>
+        <span class="tool-arrow">↗</span>
+      </a>
+
+      <a href="#" class="tool-card reveal">
+        <p class="tool-number">03</p>
+        <span class="tool-icon">📝</span>
+        <h3 class="tool-name">Text Editor</h3>
+        <p class="tool-desc">Write, format, and refine. Grammar checking, word count, and clean export built in.</p>
+        <span class="tool-arrow">↗</span>
+      </a>
+
+      <a href="#" class="tool-card reveal">
+        <p class="tool-number">04</p>
+        <span class="tool-icon">📄</span>
+        <h3 class="tool-name">PDF Tools</h3>
+        <p class="tool-desc">Annotate, merge, split, and compress PDF files without uploading to any server.</p>
+        <span class="tool-arrow">↗</span>
+      </a>
+
+    </div>
+  </section>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat reveal">
+      <p class="stat-num">4<span>+</span></p>
+      <p class="stat-label">Editing Tools</p>
+    </div>
+    <div class="stat reveal">
+      <p class="stat-num">0</p>
+      <p class="stat-label">Sign-ups Required</p>
+    </div>
+    <div class="stat reveal">
+      <p class="stat-num">100<span>%</span></p>
+      <p class="stat-label">Browser Based</p>
+    </div>
+    <div class="stat reveal">
+      <p class="stat-num">∞</p>
+      <p class="stat-label">Creative Freedom</p>
+    </div>
+  </div>
+
+  <!-- Why -->
+  <section class="why" id="why">
+    <div class="why-text">
+      <p class="section-label reveal">✦ Why Cut Frame</p>
+      <h2 class="reveal">Built for<br>Creators.</h2>
+      <p class="reveal">Cut Frame was made for people who just want to edit — no bloated software, no paywalls, no learning curve. Everything runs in your browser so your files stay private.</p>
+      <ul class="why-list reveal">
+        <li>No file uploads to external servers</li>
+        <li>Works on any device with a browser</li>
+        <li>Completely free to use</li>
+        <li>Fast, clean, distraction-free interface</li>
+        <li>All edit types in one tab</li>
+      </ul>
+    </div>
+    <div class="why-visual reveal">
+      <div class="why-visual-inner">
+        <span class="big-icon">✂️</span>
+        <p>Cut. Edit. Create.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Banner -->
+  <div class="cta-banner" id="start">
+    <h2>Ready to<br>Start Editing?</h2>
+    <a href="#tools" class="btn-white">Open a Tool</a>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <a href="#" class="logo">CUT<span style="color:var(--red)">.</span>FRAME</a>
+    <p>© 2026 Cut Frame. MIT License. Open Source.</p>
+    <p>cutframe.net</p>
+  </footer>
+
+  <script>
+    // Custom cursor
+    const cursor = document.getElementById('cursor');
+    document.addEventListener('mousemove', e => {
+      cursor.style.left = e.clientX + 'px';
+      cursor.style.top = e.clientY + 'px';
+    });
+
+    document.querySelectorAll('a, button').forEach(el => {
+      el.addEventListener('mouseenter', () => cursor.classList.add('grow'));
+      el.addEventListener('mouseleave', () => cursor.classList.remove('grow'));
+    });
+
+    // Scroll reveal
+    const reveals = document.querySelectorAll('.reveal');
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach((entry, i) => {
+        if (entry.isIntersecting) {
+          setTimeout(() => entry.target.classList.add('visible'), i * 80);
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1 });
+
+    reveals.forEach(el => observer.observe(el));
+  </script>
+
+</body>
+</html>
