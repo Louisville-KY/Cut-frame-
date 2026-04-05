@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Photo Editor — Cut Frame</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --black: #080808;
+      --white: #f5f0e8;
+      --red: #e63022;
+      --dim: #111111;
+      --panel: #141414;
+      --muted: #2a2a2a;
+      --text-muted: #777;
+    }
+
+    body {
+      background: var(--black);
+      color: var(--white);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 300;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Top Bar */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      height: 52px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--muted);
+      flex-shrink: 0;
+      gap: 12px;
+    }
+
+    .logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 20px;
+      letter-spacing: 3px;
+      color: var(--white);
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+
+    .logo span { color: var(--red); }
+
+    .tool-title {
+      font-size: 12px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .topbar-actions {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .btn-sm {
+      padding: 8px 18px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      border: none;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s;
+    }
+
+    .btn-sm:active { transform: scale(0.97); }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--muted);
+    }
+
+    .btn-outline:hover { color: var(--white); border-color: var(--white); }
+
+    .btn-red {
+      background: var(--red);
+      color: var(--white);
+    }
+
+    .btn-red:hover { background: #c42518; }
+
+    /* Main layout */
+    .editor-layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Left panel */
+    .left-panel {
+      width: 220px;
+      background: var(--panel);
+      border-right: 1px solid var(--muted);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    .panel-section {
+      padding: 16px;
+      border-bottom: 1px solid var(--muted);
+    }
+
+    .panel-label {
+      font-size: 10px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+
+    /* Sliders */
+    .slider-row {
+      margin-bottom: 14px;
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .slider-header span {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .slider-header .val {
+      color: var(--white);
+      font-weight: 500;
+    }
+
+    input[type=range] {
+      width: 100%;
+      -webkit-appearance: none;
+      height: 2px;
+      background: var(--muted);
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--red);
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.3);
+    }
+
+    /* Filters */
+    .filter-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .filter-btn {
+      background: var(--dim);
+      border: 1px solid var(--muted);
+      color: var(--text-muted);
+      padding: 10px 6px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 11px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    }
+
+    .filter-btn:hover, .filter-btn.active {
+      border-color: var(--red);
+      color: var(--white);
+      background: rgba(230,48,34,0.1);
+    }
+
+    /* Flip / rotate buttons */
+    .action-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .action-btn {
+      background: var(--dim);
+      border: 1px solid var(--muted);
+      color: var(--text-muted);
+      padding: 10px 6px;
+      font-size: 18px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    }
+
+    .action-btn:hover {
+      border-color: var(--white);
+      color: var(--white);
+    }
+
+    /* Canvas area */
+    .canvas-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: var(--dim);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .drop-zone {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      text-align: center;
+      padding: 40px;
+    }
+
+    .drop-icon {
+      font-size: 56px;
+      opacity: 0.4;
+    }
+
+    .drop-zone h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 32px;
+      letter-spacing: 3px;
+      color: var(--text-muted);
+    }
+
+    .drop-zone p {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .upload-btn {
+      margin-top: 8px;
+      padding: 14px 32px;
+      background: var(--red);
+      color: var(--white);
+      border: none;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .upload-btn:hover { background: #c42518; }
+
+    #file-input { display: none; }
+
+    /* Canvas wrapper */
+    #canvas-wrapper {
+      display: none;
+      position: relative;
+      max-width: 100%;
+      max-height: 100%;
+    }
+
+    canvas {
+      max-width: 100%;
+      max-height: calc(100vh - 120px);
+      display: block;
+      object-fit: contain;
+      box-shadow: 0 0 60px rgba(0,0,0,0.8);
+    }
+
+    /* Crop overlay hint */
+    .crop-hint {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%,-50%);
+      background: rgba(230,48,34,0.9);
+      color: white;
+      padding: 10px 20px;
+      font-size: 12px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      pointer-events: none;
+    }
+
+    /* Right panel */
+    .right-panel {
+      width: 180px;
+      background: var(--panel);
+      border-left: 1px solid var(--muted);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    .info-block {
+      padding: 16px;
+      border-bottom: 1px solid var(--muted);
+    }
+
+    .info-block .panel-label { margin-bottom: 10px; }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .info-row span {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .info-row .val {
+      color: var(--white);
+      font-weight: 400;
+    }
+
+    /* Bottom status bar */
+    .statusbar {
+      height: 28px;
+      background: var(--panel);
+      border-top: 1px solid var(--muted);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 24px;
+      flex-shrink: 0;
+    }
+
+    .statusbar span {
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+    }
+
+    .statusbar .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--red);
+      display: inline-block;
+      margin-right: 6px;
+    }
+
+    /* Mobile adjustments */
+    @media (max-width: 700px) {
+      .left-panel { width: 160px; }
+      .right-panel { display: none; }
+      .tool-title { display: none; }
+    }
+
+    @media (max-width: 500px) {
+      .left-panel { display: none; }
+      body { overflow: auto; }
+      .editor-layout { flex-direction: column; }
+      .canvas-area { min-height: 60vh; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Bar -->
+  <div class="topbar">
+    <a href="index.html" class="logo">CUT<span>.</span>FRAME</a>
+    <span class="tool-title">✦ Photo Editor</span>
+    <div class="topbar-actions">
+      <button class="btn-sm btn-outline" onclick="resetAll()">Reset</button>
+      <button class="btn-sm btn-red" onclick="downloadImage()">Export</button>
+    </div>
+  </div>
+
+  <!-- Editor Layout -->
+  <div class="editor-layout">
+
+    <!-- Left Panel -->
+    <div class="left-panel">
+
+      <!-- Upload -->
+      <div class="panel-section">
+        <p class="panel-label">Image</p>
+        <button class="upload-btn" style="width:100%;padding:10px" onclick="document.getElementById('file-input').click()">+ Open File</button>
+        <input type="file" id="file-input" accept="image/*" onchange="loadImage(event)" />
+      </div>
+
+      <!-- Adjustments -->
+      <div class="panel-section">
+        <p class="panel-label">Adjust</p>
+
+        <div class="slider-row">
+          <div class="slider-header"><span>Brightness</span><span class="val" id="v-brightness">100</span></div>
+          <input type="range" id="brightness" min="0" max="200" value="100" oninput="applyFilters()" />
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-header"><span>Contrast</span><span class="val" id="v-contrast">100</span></div>
+          <input type="range" id="contrast" min="0" max="200" value="100" oninput="applyFilters()" />
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-header"><span>Saturation</span><span class="val" id="v-saturate">100</span></div>
+          <input type="range" id="saturate" min="0" max="300" value="100" oninput="applyFilters()" />
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-header"><span>Blur</span><span class="val" id="v-blur">0</span></div>
+          <input type="range" id="blur" min="0" max="20" value="0" oninput="applyFilters()" />
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-header"><span>Sharpen</span><span class="val" id="v-sharpen">0</span></div>
+          <input type="range" id="sharpen" min="0" max="10" value="0" oninput="applyFilters()" />
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-header"><span>Hue</span><span class="val" id="v-hue">0</span></div>
+          <input type="range" id="hue" min="-180" max="180" value="0" oninput="applyFilters()" />
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-header"><span>Opacity</span><span class="val" id="v-opacity">100</span></div>
+          <input type="range" id="opacity" min="0" max="100" value="100" oninput="applyFilters()" />
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="panel-section">
+        <p class="panel-label">Filters</p>
+        <div class="filter-grid">
+          <button class="filter-btn active" onclick="setFilter('none',this)">None</button>
+          <button class="filter-btn" onclick="setFilter('grayscale',this)">B&W</button>
+          <button class="filter-btn" onclick="setFilter('sepia',this)">Sepia</button>
+          <button class="filter-btn" onclick="setFilter('invert',this)">Invert</button>
+          <button class="filter-btn" onclick="setFilter('warm',this)">Warm</button>
+          <button class="filter-btn" onclick="setFilter('cool',this)">Cool</button>
+          <button class="filter-btn" onclick="setFilter('fade',this)">Fade</button>
+          <button class="filter-btn" onclick="setFilter('dramatic',this)">Drama</button>
+        </div>
+      </div>
+
+      <!-- Transform -->
+      <div class="panel-section">
+        <p class="panel-label">Transform</p>
+        <div class="action-grid">
+          <button class="action-btn" onclick="flipH()" title="Flip Horizontal">↔️</button>
+          <button class="action-btn" onclick="flipV()" title="Flip Vertical">↕️</button>
+          <button class="action-btn" onclick="rotateCW()" title="Rotate CW">↻</button>
+          <button class="action-btn" onclick="rotateCCW()" title="Rotate CCW">↺</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Canvas Area -->
+    <div class="canvas-area" id="canvas-area"
+      ondragover="event.preventDefault()"
+      ondrop="handleDrop(event)">
+
+      <div class="drop-zone" id="drop-zone">
+        <div class="drop-icon">🖼️</div>
+        <h2>Drop Your Image</h2>
+        <p>or click below to open a file</p>
+        <button class="upload-btn" onclick="document.getElementById('file-input').click()">Open Image</button>
+      </div>
+
+      <div id="canvas-wrapper">
+        <canvas id="main-canvas"></canvas>
+      </div>
+
+    </div>
+
+    <!-- Right Panel -->
+    <div class="right-panel">
+      <div class="info-block">
+        <p class="panel-label">Info</p>
+        <div class="info-row"><span>Width</span><span class="val" id="info-w">—</span></div>
+        <div class="info-row"><span>Height</span><span class="val" id="info-h">—</span></div>
+        <div class="info-row"><span>Format</span><span class="val" id="info-fmt">—</span></div>
+        <div class="info-row"><span>Size</span><span class="val" id="info-size">—</span></div>
+      </div>
+      <div class="info-block">
+        <p class="panel-label">Export As</p>
+        <div class="filter-grid" style="grid-template-columns:1fr;gap:6px">
+          <button class="filter-btn active" id="fmt-jpg" onclick="setExportFmt('jpg',this)">JPG</button>
+          <button class="filter-btn" id="fmt-png" onclick="setExportFmt('png',this)">PNG</button>
+          <button class="filter-btn" id="fmt-webp" onclick="setExportFmt('webp',this)">WEBP</button>
+        </div>
+      </div>
+      <div class="info-block">
+        <p class="panel-label">Quality</p>
+        <div class="slider-row">
+          <div class="slider-header"><span>Quality</span><span class="val" id="v-quality">92</span></div>
+          <input type="range" id="quality" min="10" max="100" value="92" oninput="document.getElementById('v-quality').textContent=this.value" />
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Status Bar -->
+  <div class="statusbar">
+    <span><span class="dot"></span>Cut Frame</span>
+    <span id="status-msg">No image loaded</span>
+    <span id="status-dims"></span>
+  </div>
+
+  <script>
+    let img = new Image();
+    let currentFilter = 'none';
+    let exportFmt = 'jpg';
+    let rotation = 0;
+    let flipHState = 1;
+    let flipVState = 1;
+
+    function loadImage(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      readFile(file);
+    }
+
+    function handleDrop(e) {
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) readFile(file);
+    }
+
+    function readFile(file) {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        img.onload = () => {
+          document.getElementById('drop-zone').style.display = 'none';
+          document.getElementById('canvas-wrapper').style.display = 'block';
+          document.getElementById('info-w').textContent = img.width + 'px';
+          document.getElementById('info-h').textContent = img.height + 'px';
+          document.getElementById('info-fmt').textContent = file.type.split('/')[1].toUpperCase();
+          document.getElementById('info-size').textContent = (file.size / 1024).toFixed(0) + 'kb';
+          document.getElementById('status-msg').textContent = file.name;
+          document.getElementById('status-dims').textContent = img.width + ' × ' + img.height;
+          applyFilters();
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function applyFilters() {
+      if (!img.src) return;
+      const canvas = document.getElementById('main-canvas');
+      const ctx = canvas.getContext('2d');
+
+      // Handle rotation dimensions
+      const rad = rotation * Math.PI / 180;
+      const sin = Math.abs(Math.sin(rad));
+      const cos = Math.abs(Math.cos(rad));
+      const w = img.width * cos + img.height * sin;
+      const h = img.width * sin + img.height * cos;
+      canvas.width = w;
+      canvas.height = h;
+
+      // Update slider value labels
+      ['brightness','contrast','saturate','blur','sharpen','hue','opacity'].forEach(id => {
+        const el = document.getElementById(id);
+        document.getElementById('v-' + id).textContent = el.value;
+      });
+
+      const brightness = document.getElementById('brightness').value;
+      const contrast = document.getElementById('contrast').value;
+      const saturate = document.getElementById('saturate').value;
+      const blur = document.getElementById('blur').value;
+      const hue = document.getElementById('hue').value;
+      const opacity = document.getElementById('opacity').value / 100;
+
+      ctx.save();
+      ctx.translate(w / 2, h / 2);
+      ctx.rotate(rad);
+      ctx.scale(flipHState, flipVState);
+
+      let filterStr = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%) blur(${blur}px) hue-rotate(${hue}deg) opacity(${opacity})`;
+
+      // Apply preset filters on top
+      if (currentFilter === 'grayscale') filterStr += ' grayscale(100%)';
+      else if (currentFilter === 'sepia') filterStr += ' sepia(100%)';
+      else if (currentFilter === 'invert') filterStr += ' invert(100%)';
+      else if (currentFilter === 'warm') filterStr += ' sepia(40%) saturate(140%)';
+      else if (currentFilter === 'cool') filterStr += ' hue-rotate(180deg) saturate(60%)';
+      else if (currentFilter === 'fade') filterStr += ' brightness(120%) contrast(70%) saturate(70%)';
+      else if (currentFilter === 'dramatic') filterStr += ' contrast(150%) saturate(120%) brightness(90%)';
+
+      ctx.filter = filterStr;
+      ctx.drawImage(img, -img.width / 2, -img.height / 2);
+      ctx.restore();
+    }
+
+    function setFilter(name, el) {
+      currentFilter = name;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      el.classList.add('active');
+      applyFilters();
+    }
+
+    function flipH() {
+      flipHState *= -1;
+      applyFilters();
+    }
+
+    function flipV() {
+      flipVState *= -1;
+      applyFilters();
+    }
+
+    function rotateCW() {
+      rotation = (rotation + 90) % 360;
+      applyFilters();
+    }
+
+    function rotateCCW() {
+      rotation = (rotation - 90 + 360) % 360;
+      applyFilters();
+    }
+
+    function resetAll() {
+      document.getElementById('brightness').value = 100;
+      document.getElementById('contrast').value = 100;
+      document.getElementById('saturate').value = 100;
+      document.getElementById('blur').value = 0;
+      document.getElementById('sharpen').value = 0;
+      document.getElementById('hue').value = 0;
+      document.getElementById('opacity').value = 100;
+      rotation = 0;
+      flipHState = 1;
+      flipVState = 1;
+      currentFilter = 'none';
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector('.filter-btn').classList.add('active');
+      applyFilters();
+    }
+
+    function setExportFmt(fmt, el) {
+      exportFmt = fmt;
+      document.querySelectorAll('#fmt-jpg,#fmt-png,#fmt-webp').forEach(b => b.classList.remove('active'));
+      el.classList.add('active');
+    }
+
+    function downloadImage() {
+      const canvas = document.getElementById('main-canvas');
+      if (!img.src) return alert('Open an image first.');
+      const quality = document.getElementById('quality').value / 100;
+      const mimeMap = { jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
+      const mime = mimeMap[exportFmt];
+      const link = document.createElement('a');
+      link.download = 'cutframe-edit.' + exportFmt;
+      link.href = canvas.toDataURL(mime, quality);
+      link.click();
+    }
+  </script>
+
+</body>
+</html>
